@@ -1,6 +1,35 @@
-1. 根据addiw a0,a0,3知函数f和g参数放在寄存器a0中；根据li a2,13知寄存器a2保存了main对printf调用时的13。参考其它资料可以知道，a0-a7存放参数。
-在C代码中，main调用f，f调用g。而在生成的汇编中，main函数进行了内联优化处理，对f是直接计算出了12，对于g则是内联到了地址14到1a之间。
-printf被放置在了0x630的位置
-ra中保存的是0x30。其意义为与十进制下1536相加，得到16进制的0x630，也就是printf的地址。
-57616=0xE110，0x00646c72小端存储为72-6c-64-00，对照ASCII码表72:r 6c:l 64:d 00:充当字符串结尾标识，因此输出为：HE110 World。若为大端存储，i应改为0x726c6400，不需改变57616。
-打印寄存器a2中的值。需要两个参数，却只传入了一个，因此y=后面打印的结果取决于之前a2中保存的数据。
+Q1: Which registers contain arguments to functions? For example, which register holds 13 in main's call toprintf?
+	A1:经过查阅资料，我知道了在RISC-V中，函数的参数传递是通过寄存器a0到a7进行的，li  a2,13表示13保存在a2中。
+
+	Q2: Where is the call to functionfin the assembly code for main? Where is the call to g? (Hint: the compiler may inline functions.)
+	A2: 在C代码中，main调用f，f调用g。而在生成的汇编中，main函数进行了内联优化处理，对f是直接计算出了12，对于g则是内联到了地址14到1a之间。如下代码所示：
+1.		000000000000000e <f>:  
+2.	int f(int x) {  
+3.	   e:   1141                    addi    sp,sp,-16  
+4.	  10:   e422                    sd  s0,8(sp)  
+5.	  12:   0800                    addi    s0,sp,16  
+6.	  return g(x);  
+7.	}  
+8.	  14:   250d                    addiw   a0,a0,3  
+9.	  16:   6422                    ld  s0,8(sp)  
+10.	  18:   0141                    addi    sp,sp,16  
+11.	  1a:   8082
+
+Q3: At what address is the function printf located?
+A3:printf在0000000000000638 <printf>
+
+Q4: What value is in the register rajust after thejalr to printf in main?
+A4:ra中保存的是printf的返回地址，也就是0x646
+
+Q5: Run the following code.
+	unsigned int i = 0x00646c72;
+	printf("H%x Wo%s", 57616, &i);
+      
+What is the output?Here's an ASCII table that maps bytes to characters.
+The output depends on that fact that the RISC-V is little-endian. If the RISC-V were instead big-endian what would you setito in order to yield the same output? Would you need to change 57616 to a different value?
+A5:输出是He110 World, 如果RISC-V采用big-endian，则输出将不同，因为字节顺序会被颠倒。为了在big-endian情况下得到相同的输出，需要将十六进制表示中的字节顺序进行颠倒。
+	Q6: In the following code, what is going to be printed after'y='? (note: the answer is not a specific value.) Why does this happen?
+printf("x=%d y=%d", 3);
+
+	A6:y=a2，需要两个参数，而只传入了一个，因此会使用之前寄存器a2的值。
+
